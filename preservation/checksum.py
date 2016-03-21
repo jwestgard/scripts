@@ -1,57 +1,85 @@
-#!/usr/local/bin/python3
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
-import hashlib, os, sys, time
+import csv
+import hashlib
+import os
+import sys
+import time
 
-def sort_files(dir):
-    stack = [dir]
-    result = {'files' : [], 'sysfiles' : [], 'links' : []}
-    while stack:
-        dir = stack.pop()
-        for f in os.listdir(dir):
-            n = os.path.join(dir, f)
-            if f[0] == ".":
-                 result['sysfiles'].append(n)
-            elif os.path.islink(n):
-                 result['links'].append(n)
-            elif os.path.isdir(n):
-                stack.append(n)
-            else:
-                result['files'].append(n)
+
+def md5sum(filepath):
+    with open(filepath, 'rb') as f:
+        m = hashlib.md5()
+        while True:
+            data = f.read(8192)
+            if not data:
+                break
+            m.update(data)
+        return m.hexdigest()
+
+
+def listfiles(path):
+    result = []
+    for root, dirs, files in os.walk(path):
+        # prune directories beginning with dot
+        dirs[:] = [d for d in dirs if not d.startswith('.')]
+        # prune files beginning with dot
+        files[:] = [f for f in files if not f.startswith('.')]
+        result.extend([os.path.join(root, f) for f in files])
     return result
 
-def md5sum(filename):
-    md5 = hashlib.md5()
-    with open(filename,'rb') as f: 
-        for chunk in iter(lambda: f.read(128*md5.block_size), b''): 
-             md5.update(chunk)
-    return md5.hexdigest()
 
-def analyze_file(f):
-    checksum = md5sum(f)
-    size_bytes = os.path.getsize(f)
-    size_mb = round(size_bytes/(2**20), 4)
-    size_gb = round(size_bytes/(2**30), 4)
-    create_time = time.ctime(os.stat(f).st_birthtime)
-    mod_time = time.ctime(os.path.getmtime(f))
-    return [f, checksum, size_bytes, size_mb, size_gb, create_time, mod_time]
-    
-def report(data):
-    print("\nFILES:")
-    for f in data['files']:
-        h = md5sum(f)
-        print(f, "\t", h)
-    print("\nSYSTEM FILES:")
-    for s in data['sysfiles']:
-        print(s)
-    print("\nLINKS:") 
-    for l in data['links']:
-        print(l)
+def resume_job(path):
+    with open(path, 'r') as f:
+        reader = csv.DictReader(f)
+        result = {}
+        for row in reader:
+            filepath = os.path.join(row['Directory'], row['File'])
+            result[filepath] = row
+    return result
+
 
 def main():
-    dir_to_check = sys.argv[1]
-    allfiles = sort_files(dir_to_check)
-    for f in allfiles['files']:
-        row = analyze_file(f)
-        print("\t".join(map(lambda i: str(i), row)))
+    allfiles = listfiles(sys.argv[1])
+
+    # check whether output file exists, and if so read it and resume job
+    try:
+        complete = resume_job(sys.argv[2])
+        files_to_check = set(allfiles).difference([key for key in complete])
+    except FileNotFoundError:
+        files_to_check = allfiles
+
+    fieldnames = ['Directory', 'File', 'Extension', 'Bytes', 'Moddate', 'MD5']
+
+    with open(sys.argv[2], 'w+') as outfile:
+        writer = csv.DictWriter(outfile, fieldnames=fieldnames)
+        writer.writeheader()
+        count = 0
+        total = len(allfiles)
+        
+        for cf in complete:
+            writer.writerow(complete[cf])
+            count += 1
+            
+        for f in files_to_check:
+            metadata = {'Directory': os.path.dirname(os.path.abspath(f)),
+                        'File': os.path.basename(f),
+                        'Moddate': int(os.path.getmtime(f)),
+                        'Extension': os.path.splitext(f)[1].lstrip('.').upper(),
+                        'Bytes': os.path.getsize(f),
+                        'MD5': md5sum(f)}
+            writer.writerow(metadata)
+            count += 1
+            print("Files checked: {0}/{1}".format(count, total), end='\r')
+
+    print('')
+
 
 main()
+
+# parse args
+# run main with options set
+
+
+
