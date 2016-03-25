@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import csv
+from datetime import datetime as dt
 import hashlib
 import os
 import sys
@@ -49,8 +50,10 @@ def main():
         files_to_check = set(allfiles).difference([key for key in complete])
     except FileNotFoundError:
         files_to_check = allfiles
+        complete = []
 
-    fieldnames = ['Directory', 'File', 'Extension', 'Bytes', 'Moddate', 'MD5']
+    fieldnames = ['Directory', 'File', 'Extension', 'Bytes', 'MTime', 'Moddate',
+                    'MD5']
 
     with open(sys.argv[2], 'w+') as outfile:
         writer = csv.DictWriter(outfile, fieldnames=fieldnames)
@@ -63,9 +66,12 @@ def main():
             count += 1
             
         for f in files_to_check:
+            tstamp = int(os.path.getmtime(f))
             metadata = {'Directory': os.path.dirname(os.path.abspath(f)),
                         'File': os.path.basename(f),
-                        'Moddate': int(os.path.getmtime(f)),
+                        'MTime': tstamp,
+                        'Moddate': dt.fromtimestamp(tstamp).strftime(
+                            '%Y-%m-%dT%H:%M:%S'),
                         'Extension': os.path.splitext(f)[1].lstrip('.').upper(),
                         'Bytes': os.path.getsize(f),
                         'MD5': md5sum(f)}
