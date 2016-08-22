@@ -37,7 +37,7 @@ for line in reader:
     if issn.match(check1) or issn.match(check2):
         matches += 1
         writer.writerow(line)
-        deduped.update([check1, check2])
+        deduped.update([c for c in [check1, check2] if issn.match(c)])
 
 print('Matched {0}/{1} lines.'.format(matches, checked))
 print('Filtering complete! Deduplicating...')

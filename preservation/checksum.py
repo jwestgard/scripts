@@ -36,7 +36,7 @@ def resume_job(path):
         reader = csv.DictReader(f)
         result = {}
         for row in reader:
-            filepath = os.path.join(row['Directory'], row['File'])
+            filepath = os.path.join(row['Directory'], row['Filename'])
             result[filepath] = row
     return result
 
@@ -52,8 +52,8 @@ def main():
         files_to_check = allfiles
         complete = []
 
-    fieldnames = ['Directory', 'File', 'Extension', 'Bytes', 'MTime', 'Moddate',
-                    'MD5']
+    fieldnames = ['Directory', 'Filename', 'Type', 'Size', 'MTime', 'Moddate',
+                    'Other']
 
     with open(sys.argv[2], 'w+') as outfile:
         writer = csv.DictWriter(outfile, fieldnames=fieldnames)
@@ -68,13 +68,13 @@ def main():
         for f in files_to_check:
             tstamp = int(os.path.getmtime(f))
             metadata = {'Directory': os.path.dirname(os.path.abspath(f)),
-                        'File': os.path.basename(f),
+                        'Filename': os.path.basename(f),
                         'MTime': tstamp,
                         'Moddate': dt.fromtimestamp(tstamp).strftime(
                             '%Y-%m-%dT%H:%M:%S'),
-                        'Extension': os.path.splitext(f)[1].lstrip('.').upper(),
-                        'Bytes': os.path.getsize(f),
-                        'MD5': md5sum(f)}
+                        'Type': os.path.splitext(f)[1].lstrip('.').upper(),
+                        'Size': os.path.getsize(f),
+                        'Other': md5sum(f)}
             writer.writerow(metadata)
             count += 1
             print("Files checked: {0}/{1}".format(count, total), end='\r')
