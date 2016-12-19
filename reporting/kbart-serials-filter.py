@@ -38,7 +38,7 @@ for line in reader:
         matches += 1
         writer.writerow(line)
         deduped.update([c for c in [check1, check2] if issn.match(c)])
-        
+
 print('Matched {0}/{1} lines.'.format(matches, checked))
 print('Filtering complete! Deduplicating...')
 print('{0} unique ISSNs found.'.format(len(deduped)))
